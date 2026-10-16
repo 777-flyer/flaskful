@@ -1,4 +1,4 @@
-"""Flask Application Factory with enterprise security & database hardening."""
+"""Flask Application Factory with enterprise security, caching, logging & database hardening."""
 
 from __future__ import annotations
 
@@ -11,8 +11,9 @@ from app.api import register_blueprints
 from app.config import CONFIG_BY_NAME
 from app.core.cli import register_cli_commands
 from app.core.error_handlers import register_error_handlers
+from app.core.logging import configure_logging
 from app.core.security import register_security_middleware
-from app.extensions import api, cors, db, jwt, limiter, migrate
+from app.extensions import api, cache, cors, db, jwt, limiter, migrate
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -27,6 +28,9 @@ def create_app(config_name: str | None = None) -> Flask:
     config_cls.validate()
     app.config.from_object(config_cls)
 
+    # Configure structured logging
+    configure_logging(app)
+
     # Import models so SQLAlchemy and Flask-Migrate register metadata
     from app import models as _models  # noqa: F401
 
@@ -36,11 +40,17 @@ def create_app(config_name: str | None = None) -> Flask:
     api.init_app(app)
     jwt.init_app(app)
     limiter.init_app(app)
+    cache.init_app(app)
     cors.init_app(
         app,
         resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}},
         supports_credentials=True,
-        expose_headers=["X-Request-ID", "Retry-After", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
+        expose_headers=[
+            "X-Request-ID",
+            "Retry-After",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+        ],
     )
 
     # Register HTTP security headers, request ID tracing, and ProxyFix middleware
