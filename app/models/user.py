@@ -1,4 +1,4 @@
-"""User database model with scrypt password hashing, RBAC role, and brute-force lockout protection."""
+"""User database model with scrypt password hashing, public UUID, RBAC role, and lockout protection."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
-from app.models.base import CRUDMixin, TimestampMixin, utc_now
+from app.models.base import CRUDMixin, TimestampMixin, UUIDMixin, utc_now
 
 if TYPE_CHECKING:
     from app.models.item import Item
@@ -22,8 +22,8 @@ DUMMY_PASSWORD_HASH = generate_password_hash(
 )
 
 
-class User(CRUDMixin, TimestampMixin, db.Model):
-    """User account model with RBAC and brute-force lockout tracking."""
+class User(CRUDMixin, UUIDMixin, TimestampMixin, db.Model):
+    """User account model with public UUID, RBAC, and brute-force lockout tracking."""
 
     __tablename__ = "users"
 

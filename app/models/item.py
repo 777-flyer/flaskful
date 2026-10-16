@@ -1,4 +1,4 @@
-"""Sample Item database model demonstrating relationships and CRUD."""
+"""Sample Item database model with public UUID, soft deletion, and user ownership."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
-from app.models.base import CRUDMixin, TimestampMixin
+from app.models.base import CRUDMixin, SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.user import User
 
 
-class Item(CRUDMixin, TimestampMixin, db.Model):
-    """Sample Item resource owned by a User."""
+class Item(CRUDMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, db.Model):
+    """Sample Item resource owned by a User with soft-delete support."""
 
     __tablename__ = "items"
 
@@ -33,5 +33,4 @@ class Item(CRUDMixin, TimestampMixin, db.Model):
     owner: Mapped[User] = relationship("User", back_populates="items")
 
     def __repr__(self) -> str:
-        return f"<Item id={self.id} title={self.title!r} status={self.status!r}>"
-
+        return f"<Item id={self.id} uuid={self.uuid!r} title={self.title!r}>"
