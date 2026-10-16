@@ -1,4 +1,4 @@
-"""Authentication, token rotation, revocation, and account security service layer."""
+"""Authentication, token rotation, revocation, and security audit service layer."""
 
 from __future__ import annotations
 
@@ -10,22 +10,23 @@ from sqlalchemy import or_, select
 
 from app.core.exceptions import (
     AccountLockedError,
-     APIError,
+    APIError,
     ConflictError,
     NotFoundError,
     UnauthorizedError,
 )
 from app.extensions import db
+from app.models.audit_log import AuditLog
 from app.models.token_blocklist import TokenBlocklist
 from app.models.user import User
 
 
 class AuthService:
-    """Encapsulates user registration, hardened login, token rotation, and revocation."""
+    """Encapsulates user registration, hardened login, token rotation, and audit logging."""
 
     @staticmethod
     def register_user(data: dict[str, Any]) -> dict[str, Any]:
-        """Register a new user and return user + JWT tokens."""
+        """Register a new user, record an audit log, and return user + JWT tokens."""
         username = data["username"].strip()
         email = data["email"].strip().lower()
 
@@ -41,24 +42,43 @@ class AuthService:
         user.set_password(data["password"])
         user.save()
 
+        AuditLog.record(
+            "USER_REGISTER",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=user.id,
+        )
+
         return AuthService.build_auth_payload(user)
 
     @staticmethod
     def authenticate_user(data: dict[str, Any]) -> dict[str, Any]:
-        """Verify user credentials with timing-attack mitigation and brute-force lockout."""
+        """Verify user credentials with timing-attack mitigation, lockout, and audit trail."""
         email = data["email"].strip().lower()
         raw_password = data["password"]
         user = db.session.scalar(select(User).where(User.email == email))
 
         if user is None:
-            # Constant-time dummy check prevents timing-based email enumeration
             User.verify_dummy_password(raw_password)
+            AuditLog.record("USER_LOGIN_FAILED", resource_type="user")
             raise UnauthorizedError("Invalid email or password.")
 
         if not user.is_active:
+            AuditLog.record(
+                "USER_LOGIN_INACTIVE",
+                user_id=user.id,
+                resource_type="user",
+                resource_id=user.id,
+            )
             raise UnauthorizedError("This user account has been deactivated.")
 
         if user.is_locked():
+            AuditLog.record(
+                "USER_LOGIN_LOCKED",
+                user_id=user.id,
+                resource_type="user",
+                resource_id=user.id,
+            )
             raise AccountLockedError(
                 "Account is temporarily locked due to multiple failed login attempts. Please try again later."
             )
@@ -70,12 +90,30 @@ class AuthService:
                 max_attempts=max_attempts, lockout_minutes=lockout_mins
             )
             if user.is_locked():
+                AuditLog.record(
+                    "USER_ACCOUNT_LOCKED",
+                    user_id=user.id,
+                    resource_type="user",
+                    resource_id=user.id,
+                )
                 raise AccountLockedError(
                     "Account has been temporarily locked due to multiple failed login attempts."
                 )
+            AuditLog.record(
+                "USER_LOGIN_FAILED",
+                user_id=user.id,
+                resource_type="user",
+                resource_id=user.id,
+            )
             raise UnauthorizedError("Invalid email or password.")
 
         user.reset_failed_logins()
+        AuditLog.record(
+            "USER_LOGIN_SUCCESS",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=user.id,
+        )
         return AuthService.build_auth_payload(user)
 
     @staticmethod
@@ -85,8 +123,13 @@ class AuthService:
         identity = str(jwt_payload["sub"])
         user = AuthService.get_user_by_id(identity)
 
-        # Single-use refresh token rotation: block the old refresh token immediately
         TokenBlocklist.revoke_token(jti=jti, token_type="refresh", user_id=user.id)
+        AuditLog.record(
+            "TOKEN_REFRESH_ROTATED",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=user.id,
+        )
 
         return {
             "access_token": create_access_token(
@@ -98,12 +141,18 @@ class AuthService:
 
     @staticmethod
     def revoke_token_payload(jwt_payload: dict[str, Any]) -> None:
-        """Add the given token's JTI to the persistent blocklist."""
+        """Add the given token's JTI to the persistent blocklist and log the logout."""
         jti = jwt_payload["jti"]
         token_type = jwt_payload.get("type", "access")
         sub = jwt_payload.get("sub")
         user_id = int(sub) if sub is not None else None
         TokenBlocklist.revoke_token(jti=jti, token_type=token_type, user_id=user_id)
+        AuditLog.record(
+            "USER_LOGOUT",
+            user_id=user_id,
+            resource_type="user",
+            resource_id=user_id,
+        )
 
     @staticmethod
     def change_password(
@@ -112,7 +161,7 @@ class AuthService:
         new_password: str,
         current_jti: str | None = None,
     ) -> None:
-        """Verify current password, set new password, and revoke the current access token."""
+        """Verify current password, set new password, revoke token, and log event."""
         user = AuthService.get_user_by_id(user_id)
         if not user.check_password(current_password):
             raise UnauthorizedError("Current password is incorrect.")
@@ -128,6 +177,12 @@ class AuthService:
             TokenBlocklist.revoke_token(
                 jti=current_jti, token_type="access", user_id=user.id
             )
+        AuditLog.record(
+            "PASSWORD_CHANGE",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=user.id,
+        )
 
     @staticmethod
     def get_user_by_id(user_id: int | str) -> User:
