@@ -56,3 +56,4 @@ def test_scaffold_resource_creates_all_layers_and_registers_inits(tmp_path: Path
     # Running a second time without force=True should skip existing files safely
     skipped = scaffold_resource("project", base_dir=tmp_path, include_tests=True)
     assert len(skipped) == 0
+

@@ -625,3 +625,4 @@ def scaffold_resource(
             created_files.append(test_path)
 
     return created_files
+
