@@ -1,8 +1,8 @@
 # FlaskFul
 
-**FlaskFul** is a scalable, security-hardened **RESTful API boilerplate** built with **Flask 3**, **Flask-Smorest (Marshmallow + OpenAPI 3)**, **SQLAlchemy 2.0**, **Flask-Migrate (Alembic)**, **Flask-JWT-Extended**, **Flask-Limiter**, and **Flask-CORS**.
+**FlaskFul** is a scalable, security-hardened **RESTful API boilerplate** built with **Flask 3**, **Flask-Smorest (Marshmallow + OpenAPI 3)**, **SQLAlchemy 2.0**, **Flask-Migrate (Alembic)**, **Flask-JWT-Extended**, **Flask-Limiter**, **Flask-Caching**, and **Flask-CORS**.
 
-Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js, Mobile) with **OWASP API Security Top 10**, database hardening, and multi-platform deployment out of the box.
+Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js, Mobile) with **OWASP API Security Top 10**, database hardening, caching, audit trails, and multi-platform deployment out of the box.
 
 ---
 
@@ -14,9 +14,10 @@ Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js,
 | **Documentation** | Auto-generated **OpenAPI 3.0.3** spec with interactive **Swagger UI** (`/docs`) & **ReDoc** (`/redoc`) + JWT Bearer auth button. |
 | **Authentication** | `scrypt:32768:8:1` password hashing, JWT access/refresh tokens, **single-use refresh token rotation**, and persistent JTI revocation (`token_blocklist`). |
 | **API Security** | Rate limiting (`Flask-Limiter`), brute-force account lockout (`423 Locked`), timing-attack mitigation, RBAC (`@roles_required`), BOLA ownership checks, and `1 MB` payload limits. |
+| **Audit & Logging** | Immutable `AuditLog` database trail (`user_id`, `action`, `ip_address`, `request_id`) + structured JSON logging (`LOG_FORMAT=json`). |
+| **Data & Caching** | `Flask-Caching` (`SimpleCache` / `RedisCache`) with automatic per-user cache invalidation, `UUIDMixin` (public UUIDv4s), `SoftDeleteMixin` (`deleted_at` + restore), and dynamic sorting. |
 | **Input Validation** | Strict Marshmallow `BaseSchema` (`unknown = RAISE` against mass-assignment), OWASP password policy, null-byte rejection, and SQL `ILIKE` wildcard escaping. |
-| **HTTP Hardening** | Automatic `CSP`, `HSTS`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`, `X-Request-ID` tracing, and `ProxyFix`. |
-| **Database Security** | SQLAlchemy 2.0 `Mapped` models, `pool_pre_ping`, automatic session rollback on error, and SQLite PRAGMAs (`foreign_keys=ON`, `trusted_schema=OFF`, `secure_delete=ON`, `WAL`). |
+| **HTTP & DB Hardening** | Automatic `CSP`, `HSTS`, `nosniff`, `DENY`, `Cache-Control: no-store`, `X-Request-ID`, `pool_pre_ping`, auto-rollback on error, and SQLite PRAGMAs (`foreign_keys=ON`, `trusted_schema=OFF`, `secure_delete=ON`, `WAL`). |
 | **Deployment & CI** | Multi-stage non-root `Dockerfile`, `docker-compose.yml` (Postgres 16 + Redis 7 + Nginx), `gunicorn.conf.py`, `render.yaml`, `railway.json`, `Procfile`, and GitHub Actions CI. |
 
 ---
@@ -27,17 +28,17 @@ Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js,
 flaskful/
 ├── .github/workflows/ci.yml  # Automated Lint, Pytest & Docker build CI pipeline
 ├── app/
-│   ├── api/v1/               # Route blueprints: health.py, auth.py, items.py
-│   ├── core/                 # Security headers, RBAC, custom exceptions, error handlers, CLI
-│   ├── models/               # SQLAlchemy 2.0 models: base.py, user.py, item.py, token_blocklist.py
-│   ├── schemas/              # Marshmallow validation & serialization schemas
-│   ├── services/             # Business logic & queries: auth_service.py, item_service.py
+│   ├── api/v1/               # Blueprints: health.py, auth.py, items.py, admin.py
+│   ├── core/                 # Security headers, RBAC, structured logging, exceptions, CLI
+│   ├── models/               # SQLAlchemy 2.0: base.py, user.py, item.py, token_blocklist.py, audit_log.py
+│   ├── schemas/              # Marshmallow schemas: common.py, auth.py, item.py, admin.py
+│   ├── services/             # Business logic: auth_service.py, item_service.py, admin_service.py
 │   ├── __init__.py           # Application Factory (create_app)
 │   ├── config.py             # Environment configs (Dev, Test, Prod) + startup security validation
-│   └── extensions.py         # db, migrate, api, jwt, cors, limiter + SQLite PRAGMAs
+│   └── extensions.py         # db, migrate, api, jwt, cors, limiter, cache + SQLite PRAGMAs
 ├── deploy/nginx/nginx.conf   # Hardened Nginx reverse proxy config with edge rate limiting
 ├── docker/entrypoint.sh      # Container startup script
-├── tests/                    # Pytest suite (auth, CRUD, BOLA, rate limits, headers, DB pragmas)
+├── tests/                    # Pytest suite (auth, CRUD, soft-delete, RBAC admin, audit logs, security)
 ├── Dockerfile                # Multi-stage non-root production container image
 ├── docker-compose.yml        # Full production stack (API + PostgreSQL 16 + Redis 7 + Nginx)
 ├── gunicorn.conf.py          # Production Gunicorn WSGI server configuration
@@ -62,7 +63,7 @@ pip install -r requirements.txt
 # 3. Configure environment & initialize database
 Copy-Item .env.example .env
 flask init-db
-flask seed-db   # Seeds demo@example.com / DemoPass123!
+flask seed-db   # Seeds demo@example.com (DemoPass123!) & admin@example.com (AdminPass123!)
 
 # 4. Run development server
 flask run
@@ -85,29 +86,32 @@ flask run
 | `POST` | `/api/v1/auth/logout` | Access/Refresh JWT | Revoke current token JTI in blocklist |
 | `POST` | `/api/v1/auth/change-password` | Access JWT | Verify current password, update hash & revoke token |
 | `GET` | `/api/v1/auth/me` | Access JWT | Retrieve current authenticated user profile |
-| `GET` | `/api/v1/items` | Access JWT | Paginated & filtered list of user's items (`?page=1&status=active&search=...`) |
-| `POST` | `/api/v1/items` | Access JWT | Create a new item |
+| `GET` | `/api/v1/items` | Access JWT | Cached, paginated, filtered & sorted items (`?sort_by=title&sort_order=asc&include_deleted=false`) |
+| `POST` | `/api/v1/items` | Access JWT | Create a new item (invalidates user cache) |
 | `GET` | `/api/v1/items/<id>` | Access JWT | Get item by ID (enforces BOLA ownership) |
 | `PATCH` | `/api/v1/items/<id>` | Access JWT | Partially update item by ID |
-| `DELETE` | `/api/v1/items/<id>` | Access JWT | Delete item by ID |
+| `DELETE` | `/api/v1/items/<id>` | Access JWT | Soft-delete (archive) item by ID |
+| `POST` | `/api/v1/items/<id>/restore` | Access JWT | Restore a soft-deleted item by ID |
+| `GET` | `/api/v1/admin/users` | Admin JWT | List all users (protected by `@roles_required("admin")`) |
+| `PATCH` | `/api/v1/admin/users/<id>` | Admin JWT | Update user role, active status, or unlock account |
+| `GET` | `/api/v1/admin/audit-logs` | Admin JWT | Query security audit logs (`?action=USER_LOGIN_SUCCESS&user_id=1`) |
 
 ---
 
 ## Deployment Options
 
 ### 1. Docker & Docker Compose (PostgreSQL + Redis + Nginx)
-Runs the full production stack with a non-root container (`appuser`), Gunicorn workers, PostgreSQL 16, Redis 7 (for distributed rate limiting), and Nginx:
 ```bash
 docker compose up -d --build
 ```
 
 ### 2. Cloud PaaS (Render / Railway / Heroku)
-* **Render**: Connect your repository on Render—`render.yaml` automatically provisions the web service, managed PostgreSQL database, and secret keys.
-* **Railway**: Connect your repository—`railway.json` builds the `Dockerfile` and monitors `/api/v1/health`.
+* **Render**: Uses `render.yaml` Blueprint (Web Service + Managed PostgreSQL + auto-generated secrets).
+* **Railway**: Uses `railway.json` (`Dockerfile` builder + `/api/v1/health` check).
 * **Heroku / Dokku**: Uses `Procfile` (`web: gunicorn -c gunicorn.conf.py wsgi:app`).
 
 ### 3. VPS + Nginx Reverse Proxy
-Run Gunicorn via `systemd` or Docker and use `deploy/nginx/nginx.conf` for edge rate limiting, request size enforcement, and proxy header forwarding (`TRUSTED_PROXY_COUNT=1`).
+Run Gunicorn and use `deploy/nginx/nginx.conf` for edge rate limiting, `1M` request size enforcement, and proxy header forwarding (`TRUSTED_PROXY_COUNT=1`).
 
 ---
 
@@ -122,12 +126,3 @@ flask db upgrade
 # Run test suite (inside .venv)
 .\.venv\Scripts\pytest -v
 ```
-
----
-
-## Extending with a New Resource
-
-1. **Model**: Create `app/models/<resource>.py` (inherit `CRUDMixin, TimestampMixin, db.Model`) and export in `app/models/__init__.py`.
-2. **Schema**: Create `app/schemas/<resource>.py` (inherit `BaseSchema`).
-3. **Service**: Create `app/services/<resource>_service.py` for queries and business rules.
-4. **Blueprint**: Create `app/api/v1/<resource>.py` and append its `blp` to `V1_BLUEPRINTS` in `app/api/v1/__init__.py`.
