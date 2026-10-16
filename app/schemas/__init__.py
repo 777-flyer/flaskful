@@ -1,5 +1,12 @@
 """Export Marshmallow schemas."""
 
+from app.schemas.admin import (
+    AdminUserUpdateSchema,
+    AuditLogQuerySchema,
+    AuditLogSchema,
+    PaginatedAuditLogResponseSchema,
+    PaginatedUserResponseSchema,
+)
 from app.schemas.auth import (
     AuthTokenResponseSchema,
     PasswordChangeSchema,
@@ -24,6 +31,9 @@ from app.schemas.item import (
 )
 
 __all__ = [
+    "AdminUserUpdateSchema",
+    "AuditLogQuerySchema",
+    "AuditLogSchema",
     "AuthTokenResponseSchema",
     "BaseSchema",
     "HealthResponseSchema",
@@ -32,7 +42,9 @@ __all__ = [
     "ItemSchema",
     "ItemUpdateSchema",
     "MessageSchema",
+    "PaginatedAuditLogResponseSchema",
     "PaginatedItemResponseSchema",
+    "PaginatedUserResponseSchema",
     "PaginationMetaSchema",
     "PaginationQuerySchema",
     "PasswordChangeSchema",

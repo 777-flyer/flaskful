@@ -38,6 +38,7 @@ class UserSchema(BaseSchema):
     """Serialized User representation (never exposes password_hash or lockout internals)."""
 
     id = fields.Integer(dump_only=True)
+    uuid = fields.String(dump_only=True)
     username = fields.String(required=True)
     email = fields.Email(required=True)
     role = fields.String(dump_only=True)
