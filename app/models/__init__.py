@@ -5,4 +5,4 @@ from app.models.item import Item
 from app.models.token_blocklist import TokenBlocklist
 from app.models.user import User
 
-__all__ = ["CRUDMixin", "TimestampMixin", "User", "Item", "TokenBlocklist"]
+__all__ = ["CRUDMixin", "Item", "TimestampMixin", "TokenBlocklist", "User"]

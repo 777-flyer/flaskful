@@ -1,5 +1,7 @@
 """Authentication, token rotation, logout, and password management endpoints."""
 
+from typing import ClassVar
+
 from flask import current_app
 from flask.views import MethodView
 from flask_jwt_extended import (
@@ -37,7 +39,7 @@ def _auth_rate_limit() -> str:
 class AuthRegisterResource(MethodView):
     """User registration endpoint."""
 
-    decorators = [limiter.limit(_auth_rate_limit)]
+    decorators: ClassVar[list] = [limiter.limit(_auth_rate_limit)]
 
     @blp.arguments(UserRegisterSchema)
     @blp.response(201, AuthTokenResponseSchema)
@@ -50,7 +52,7 @@ class AuthRegisterResource(MethodView):
 class AuthLoginResource(MethodView):
     """User login endpoint protected by rate limiting and account lockout."""
 
-    decorators = [limiter.limit(_auth_rate_limit)]
+    decorators: ClassVar[list] = [limiter.limit(_auth_rate_limit)]
 
     @blp.arguments(UserLoginSchema)
     @blp.response(200, AuthTokenResponseSchema)
@@ -63,7 +65,7 @@ class AuthLoginResource(MethodView):
 class AuthRefreshResource(MethodView):
     """Single-use JWT refresh token rotation endpoint."""
 
-    decorators = [limiter.limit(_auth_rate_limit)]
+    decorators: ClassVar[list] = [limiter.limit(_auth_rate_limit)]
 
     @jwt_required(refresh=True)
     @blp.doc(security=[{"BearerAuth": []}])
@@ -92,7 +94,7 @@ class AuthLogoutResource(MethodView):
 class AuthChangePasswordResource(MethodView):
     """Authenticated password update endpoint."""
 
-    decorators = [limiter.limit(_auth_rate_limit)]
+    decorators: ClassVar[list] = [limiter.limit(_auth_rate_limit)]
 
     @jwt_required()
     @blp.doc(security=[{"BearerAuth": []}])

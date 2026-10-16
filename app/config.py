@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from dotenv import load_dotenv
 
@@ -81,7 +81,7 @@ class BaseConfig:
     )
 
     # Register JWT Bearer Auth in OpenAPI / Swagger UI
-    API_SPEC_OPTIONS: dict = {
+    API_SPEC_OPTIONS: ClassVar[dict[str, Any]] = {
         "components": {
             "securitySchemes": {
                 "BearerAuth": {
@@ -97,7 +97,7 @@ class BaseConfig:
     # JWT & Authentication Security Configuration
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-fallback-jwt-secret-key")
     JWT_ALGORITHM: str = "HS256"
-    JWT_TOKEN_LOCATION: list[str] = ["headers"]
+    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["headers"]
     JWT_HEADER_NAME: str = "Authorization"
     JWT_HEADER_TYPE: str = "Bearer"
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(
@@ -120,7 +120,7 @@ class BaseConfig:
     RATELIMIT_HEADERS_ENABLED: bool = True
 
     # CORS Configuration (for separate frontend applications)
-    CORS_ORIGINS: str | list[str] = _parse_cors_origins(
+    CORS_ORIGINS: ClassVar[str | list[str]] = _parse_cors_origins(
         os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
     )
 
@@ -137,7 +137,7 @@ class DevelopmentConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI: str = os.getenv(
         "DATABASE_URL", f"sqlite:///{BASE_DIR / 'instance' / 'app.db'}"
     )
-    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = _build_engine_options(
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, Any]] = _build_engine_options(
         SQLALCHEMY_DATABASE_URI
     )
 
@@ -149,7 +149,7 @@ class TestingConfig(BaseConfig):
     DEBUG: bool = True
     SESSION_COOKIE_SECURE: bool = False
     SQLALCHEMY_DATABASE_URI: str = "sqlite:///:memory:"
-    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = _build_engine_options(
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, Any]] = _build_engine_options(
         SQLALCHEMY_DATABASE_URI
     )
     JWT_ACCESS_TOKEN_EXPIRES: timedelta = timedelta(minutes=5)
@@ -167,7 +167,7 @@ class ProductionConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI: str = os.getenv(
         "DATABASE_URL", f"sqlite:///{BASE_DIR / 'instance' / 'prod.db'}"
     )
-    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = _build_engine_options(
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, Any]] = _build_engine_options(
         SQLALCHEMY_DATABASE_URI
     )
 

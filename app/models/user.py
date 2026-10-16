@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Integer, String
@@ -76,7 +76,7 @@ class User(CRUDMixin, TimestampMixin, db.Model):
         locked_until_utc = (
             self.locked_until
             if self.locked_until.tzinfo is not None
-            else self.locked_until.replace(tzinfo=timezone.utc)
+            else self.locked_until.replace(tzinfo=UTC)
         )
         return utc_now() < locked_until_utc
 

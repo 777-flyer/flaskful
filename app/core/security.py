@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 from flask import Flask, Response, current_app, g, request
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request

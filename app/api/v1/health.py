@@ -4,6 +4,7 @@ from flask import current_app
 from flask.views import MethodView
 from flask_smorest import Blueprint
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.schemas.common import HealthResponseSchema
@@ -26,7 +27,7 @@ class HealthCheckResource(MethodView):
         db_status = "connected"
         try:
             db.session.execute(text("SELECT 1"))
-        except Exception:
+        except SQLAlchemyError:
             db_status = "disconnected"
 
         return {
