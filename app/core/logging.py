@@ -41,3 +41,4 @@ def configure_logging(app: Flask) -> None:
     if log_format == "json":
         for handler in app.logger.handlers:
             handler.setFormatter(StructuredJSONFormatter())
+

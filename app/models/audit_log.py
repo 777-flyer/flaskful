@@ -70,3 +70,4 @@ class AuditLog(CRUDMixin, db.Model):
             request_id=req_id,
         )
         return entry.save(commit=commit)
+

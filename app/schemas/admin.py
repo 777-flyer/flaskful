@@ -63,3 +63,4 @@ class PaginatedUserResponseSchema(BaseSchema):
 
     users = fields.List(fields.Nested(UserSchema), required=True)
     meta = fields.Nested(PaginationMetaSchema, required=True)
+

@@ -27,3 +27,4 @@ databases:
     DatabaseName: flaskful
     user: flaskful
     plan: free
+

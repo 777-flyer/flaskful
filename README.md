@@ -50,28 +50,60 @@ flaskful/
 
 ---
 
-## Quick Start (Local Development)
+## How to Use
 
+### 1. Start a New Project from FlaskFul
 ```powershell
-# 1. Create & activate virtual environment
+# Clone the boilerplate for your new project
+git clone https://github.com/777-flyer/flaskful.git my-new-api
+cd my-new-api
+
+# Create & activate virtual environment
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# 2. Install dependencies
+# Install dependencies & configure environment
 pip install -r requirements.txt
-
-# 3. Configure environment & initialize database
 Copy-Item .env.example .env
-flask init-db
-flask seed-db   # Seeds demo@example.com (DemoPass123!) & admin@example.com (AdminPass123!)
 
-# 4. Run development server
+# Initialize & seed database (Demo: demo@example.com / DemoPass123! | Admin: admin@example.com / AdminPass123!)
+flask init-db
+flask seed-db
+
+# Start server at http://localhost:5000
 flask run
 ```
-
-* **Swagger UI**: `http://localhost:5000/docs`
+* **Interactive Swagger UI**: `http://localhost:5000/docs` (Click **Authorize** and paste your `access_token` to test protected routes)
 * **ReDoc**: `http://localhost:5000/redoc`
-* **Health Check**: `http://localhost:5000/api/v1/health`
+
+---
+
+### 2. Connect Your Frontend Application (React / Vue / Next.js)
+1. **Configure CORS**: Add your frontend origin to `CORS_ORIGINS` in `.env` (e.g., `CORS_ORIGINS=http://localhost:3000,http://localhost:5173`).
+2. **Authenticate**:
+   * Call `POST /api/v1/auth/login` or `POST /api/v1/auth/register` to receive `access_token` and `refresh_token`.
+   * Send `Authorization: Bearer <access_token>` on all protected requests.
+3. **Token Refresh Rotation**:
+   * When an `access_token` expires (`401 TOKEN_EXPIRED`), call `POST /api/v1/auth/refresh` with `Authorization: Bearer <refresh_token>`.
+   * Store **both** the new `access_token` and the rotated `refresh_token` (each refresh token is single-use).
+4. **Standardized Error Format**: Every error returns a consistent JSON structure with a traceable `request_id`:
+   ```json
+   {
+     "status": "error",
+     "code": 401,
+     "error": "UNAUTHORIZED",
+     "message": "Invalid email or password.",
+     "request_id": "a1b2c3d4-..."
+   }
+   ```
+
+---
+
+### 3. Add a New Resource / Feature in 4 Steps
+1. **Model (`app/models/project.py`)**: Inherit `CRUDMixin`, `UUIDMixin`, `TimestampMixin`, `SoftDeleteMixin`, and `db.Model`, then export it in `app/models/__init__.py`.
+2. **Schema (`app/schemas/project.py`)**: Inherit `BaseSchema` from `app/schemas/common.py` (automatically rejects undeclared fields and null bytes).
+3. **Service (`app/services/project_service.py`)**: Encapsulate DB queries, call `AuditLog.record(...)` for auditability, and raise `NotFoundError` / `ForbiddenError` from `app/core/exceptions.py`.
+4. **Blueprint (`app/api/v1/project.py`)**: Create a `flask_smorest.Blueprint`, decorate routes with `@jwt_required()` or `@roles_required("admin")`, and add the blueprint to `V1_BLUEPRINTS` in `app/api/v1/__init__.py`.
 
 ---
 
@@ -100,18 +132,14 @@ flask run
 
 ## Deployment Options
 
-### 1. Docker & Docker Compose (PostgreSQL + Redis + Nginx)
-```bash
-docker compose up -d --build
-```
-
-### 2. Cloud PaaS (Render / Railway / Heroku)
-* **Render**: Uses `render.yaml` Blueprint (Web Service + Managed PostgreSQL + auto-generated secrets).
-* **Railway**: Uses `railway.json` (`Dockerfile` builder + `/api/v1/health` check).
+* **Docker Compose (PostgreSQL 16 + Redis 7 + Nginx)**:
+  ```bash
+  docker compose up -d --build
+  ```
+* **Render**: Connect repo — `render.yaml` provisions the web service, managed PostgreSQL, and secrets.
+* **Railway**: Connect repo — `railway.json` builds the `Dockerfile` and monitors `/api/v1/health`.
 * **Heroku / Dokku**: Uses `Procfile` (`web: gunicorn -c gunicorn.conf.py wsgi:app`).
-
-### 3. VPS + Nginx Reverse Proxy
-Run Gunicorn and use `deploy/nginx/nginx.conf` for edge rate limiting, `1M` request size enforcement, and proxy header forwarding (`TRUSTED_PROXY_COUNT=1`).
+* **VPS + Nginx**: Run Gunicorn behind `deploy/nginx/nginx.conf` with `TRUSTED_PROXY_COUNT=1`.
 
 ---
 

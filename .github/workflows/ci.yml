@@ -49,3 +49,4 @@ jobs:
 
       - name: Build production Docker image
         run: docker build -t flaskful:ci-test .
+
