@@ -1,0 +1,31 @@
+# Git & version control
+.git
+.gitignore
+.github
+
+# Virtual environments & caches
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Local databases & secrets
+instance/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.local
+
+# IDE & OS files
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+README.md
+tests/
