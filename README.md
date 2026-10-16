@@ -174,3 +174,9 @@ flask db upgrade
 # Run test suite (inside .venv)
 .\.venv\Scripts\pytest -v
 ```
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).

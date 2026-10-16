@@ -3,6 +3,7 @@ name = "flaskful"
 version = "1.0.0"
 description = "FlaskFul — Scalable, enterprise-secure RESTful API boilerplate for Flask"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
