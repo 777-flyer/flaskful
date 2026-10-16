@@ -119,6 +119,15 @@ class BaseConfig:
     RATELIMIT_AUTH_LIMIT: str = os.getenv("RATELIMIT_AUTH_LIMIT", "5 per minute")
     RATELIMIT_HEADERS_ENABLED: bool = True
 
+    # Caching (Flask-Caching)
+    CACHE_TYPE: str = os.getenv("CACHE_TYPE", "SimpleCache")
+    CACHE_DEFAULT_TIMEOUT: int = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "60"))
+    CACHE_REDIS_URL: str | None = os.getenv("CACHE_REDIS_URL")
+
+    # Structured Logging Configuration
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_FORMAT: str = os.getenv("LOG_FORMAT", "text")
+
     # CORS Configuration (for separate frontend applications)
     CORS_ORIGINS: ClassVar[str | list[str]] = _parse_cors_origins(
         os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
