@@ -1,0 +1,24 @@
+# Core Flask & REST API
+Flask>=3.0.0,<4.0.0
+flask-smorest>=0.44.0
+marshmallow>=3.21.0
+webargs>=8.4.0
+
+# Database & Migrations
+Flask-SQLAlchemy>=3.1.1
+SQLAlchemy>=2.0.30
+Flask-Migrate>=4.0.7
+alembic>=1.13.0
+
+# Authentication, Rate Limiting & CORS
+Flask-JWT-Extended>=4.6.0
+Flask-Cors>=5.0.0
+Flask-Limiter>=3.8.0
+
+# Environment & Utilities
+python-dotenv>=1.0.1
+
+# Testing & Development
+pytest>=8.2.0
+pytest-cov>=5.0.0
+
