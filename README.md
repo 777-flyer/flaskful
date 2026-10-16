@@ -2,7 +2,7 @@
 
 **FlaskFul** is a scalable, security-hardened **RESTful API boilerplate** built with **Flask 3**, **Flask-Smorest (Marshmallow + OpenAPI 3)**, **SQLAlchemy 2.0**, **Flask-Migrate (Alembic)**, **Flask-JWT-Extended**, **Flask-Limiter**, and **Flask-CORS**.
 
-Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js, Mobile) with **OWASP API Security Top 10** and database hardening out of the box.
+Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js, Mobile) with **OWASP API Security Top 10**, database hardening, and multi-platform deployment out of the box.
 
 ---
 
@@ -17,6 +17,7 @@ Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js,
 | **Input Validation** | Strict Marshmallow `BaseSchema` (`unknown = RAISE` against mass-assignment), OWASP password policy, null-byte rejection, and SQL `ILIKE` wildcard escaping. |
 | **HTTP Hardening** | Automatic `CSP`, `HSTS`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`, `X-Request-ID` tracing, and `ProxyFix`. |
 | **Database Security** | SQLAlchemy 2.0 `Mapped` models, `pool_pre_ping`, automatic session rollback on error, and SQLite PRAGMAs (`foreign_keys=ON`, `trusted_schema=OFF`, `secure_delete=ON`, `WAL`). |
+| **Deployment & CI** | Multi-stage non-root `Dockerfile`, `docker-compose.yml` (Postgres 16 + Redis 7 + Nginx), `gunicorn.conf.py`, `render.yaml`, `railway.json`, `Procfile`, and GitHub Actions CI. |
 
 ---
 
@@ -24,25 +25,31 @@ Engineered as a standalone backend for decoupled frontends (React, Vue, Next.js,
 
 ```text
 flaskful/
+├── .github/workflows/ci.yml  # Automated Lint, Pytest & Docker build CI pipeline
 ├── app/
-│   ├── api/v1/             # Route blueprints: health.py, auth.py, items.py
-│   ├── core/               # Security headers, RBAC, custom exceptions, error handlers, CLI
-│   ├── models/             # SQLAlchemy 2.0 models: base.py, user.py, item.py, token_blocklist.py
-│   ├── schemas/            # Marshmallow validation & serialization schemas
-│   ├── services/           # Business logic & queries: auth_service.py, item_service.py
-│   ├── __init__.py         # Application Factory (create_app)
-│   ├── config.py           # Environment configs (Dev, Test, Prod) + startup security validation
-│   └── extensions.py       # db, migrate, api, jwt, cors, limiter + SQLite PRAGMAs
-├── tests/                  # Pytest suite (auth, CRUD, BOLA, rate limits, headers, DB pragmas)
-├── .env.example            # Environment variable template
-├── pyproject.toml          # Project metadata, Pytest & Ruff config
-├── requirements.txt        # Pinned dependencies
-└── wsgi.py                 # WSGI entry point
+│   ├── api/v1/               # Route blueprints: health.py, auth.py, items.py
+│   ├── core/                 # Security headers, RBAC, custom exceptions, error handlers, CLI
+│   ├── models/               # SQLAlchemy 2.0 models: base.py, user.py, item.py, token_blocklist.py
+│   ├── schemas/              # Marshmallow validation & serialization schemas
+│   ├── services/             # Business logic & queries: auth_service.py, item_service.py
+│   ├── __init__.py           # Application Factory (create_app)
+│   ├── config.py             # Environment configs (Dev, Test, Prod) + startup security validation
+│   └── extensions.py         # db, migrate, api, jwt, cors, limiter + SQLite PRAGMAs
+├── deploy/nginx/nginx.conf   # Hardened Nginx reverse proxy config with edge rate limiting
+├── docker/entrypoint.sh      # Container startup script
+├── tests/                    # Pytest suite (auth, CRUD, BOLA, rate limits, headers, DB pragmas)
+├── Dockerfile                # Multi-stage non-root production container image
+├── docker-compose.yml        # Full production stack (API + PostgreSQL 16 + Redis 7 + Nginx)
+├── gunicorn.conf.py          # Production Gunicorn WSGI server configuration
+├── Procfile                  # Heroku / Dokku / PaaS process definition
+├── railway.json              # Railway 1-click deployment config
+├── render.yaml               # Render 1-click Blueprint (Web Service + Managed Postgres)
+└── wsgi.py                   # WSGI entry point
 ```
 
 ---
 
-## Quick Start
+## Quick Start (Local Development)
 
 ```powershell
 # 1. Create & activate virtual environment
@@ -86,6 +93,24 @@ flask run
 
 ---
 
+## Deployment Options
+
+### 1. Docker & Docker Compose (PostgreSQL + Redis + Nginx)
+Runs the full production stack with a non-root container (`appuser`), Gunicorn workers, PostgreSQL 16, Redis 7 (for distributed rate limiting), and Nginx:
+```bash
+docker compose up -d --build
+```
+
+### 2. Cloud PaaS (Render / Railway / Heroku)
+* **Render**: Connect your repository on Render—`render.yaml` automatically provisions the web service, managed PostgreSQL database, and secret keys.
+* **Railway**: Connect your repository—`railway.json` builds the `Dockerfile` and monitors `/api/v1/health`.
+* **Heroku / Dokku**: Uses `Procfile` (`web: gunicorn -c gunicorn.conf.py wsgi:app`).
+
+### 3. VPS + Nginx Reverse Proxy
+Run Gunicorn via `systemd` or Docker and use `deploy/nginx/nginx.conf` for edge rate limiting, request size enforcement, and proxy header forwarding (`TRUSTED_PROXY_COUNT=1`).
+
+---
+
 ## Database Migrations & Testing
 
 ```powershell
@@ -94,8 +119,8 @@ flask db init
 flask db migrate -m "Initial schema"
 flask db upgrade
 
-# Run test suite
-pytest -v
+# Run test suite (inside .venv)
+.\.venv\Scripts\pytest -v
 ```
 
 ---
