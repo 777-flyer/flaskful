@@ -99,11 +99,31 @@ flask run
 
 ---
 
-### 3. Add a New Resource / Feature in 4 Steps
-1. **Model (`app/models/project.py`)**: Inherit `CRUDMixin`, `UUIDMixin`, `TimestampMixin`, `SoftDeleteMixin`, and `db.Model`, then export it in `app/models/__init__.py`.
-2. **Schema (`app/schemas/project.py`)**: Inherit `BaseSchema` from `app/schemas/common.py` (automatically rejects undeclared fields and null bytes).
-3. **Service (`app/services/project_service.py`)**: Encapsulate DB queries, call `AuditLog.record(...)` for auditability, and raise `NotFoundError` / `ForbiddenError` from `app/core/exceptions.py`.
-4. **Blueprint (`app/api/v1/project.py`)**: Create a `flask_smorest.Blueprint`, decorate routes with `@jwt_required()` or `@roles_required("admin")`, and add the blueprint to `V1_BLUEPRINTS` in `app/api/v1/__init__.py`.
+### 3. Generate a New Resource with 1 Command (Django `startapp` Style)
+FlaskFul includes a built-in CLI code generator (`app/core/scaffold.py`) that scaffolds all 5 layers and auto-registers them in `app/models/__init__.py` and `app/api/v1/__init__.py`:
+
+```powershell
+# Generate Model + Schema + Service + Blueprint + Pytest file in one command:
+flask make-resource project
+
+# Apply the new table to the database:
+flask init-db
+```
+
+This single command creates and wires:
+* `app/models/project.py` (`Project` with `CRUDMixin`, `UUIDMixin`, `TimestampMixin`, `SoftDeleteMixin`)
+* `app/schemas/project.py` (`ProjectSchema`, `ProjectCreateSchema`, `ProjectUpdateSchema`, `ProjectQuerySchema`)
+* `app/services/project_service.py` (`ProjectService` with caching, BOLA checks, soft-delete/restore, and `AuditLog`)
+* `app/api/v1/projects.py` (`/api/v1/projects` CRUD + `/restore` blueprint, immediately live in `/docs`)
+* `tests/test_projects.py` (Automated CRUD & soft-delete test suite)
+
+You can also generate individual layers separately whenever needed:
+```powershell
+flask make-model project
+flask make-schema project
+flask make-service project
+flask make-blueprint project
+```
 
 ---
 
